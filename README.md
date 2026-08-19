@@ -1,100 +1,132 @@
-# vinext-starter
+# RevenueGuard
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+> One payment. Twenty webhook deliveries. Exactly one order.
 
-## Prerequisites
+[![Live demo](https://img.shields.io/badge/live-demo-d7ff43?style=for-the-badge&labelColor=10131b)](https://revenueguard-lab.sunny-seal-4213.chatgpt.site/)
+[![DEV Challenge](https://img.shields.io/badge/DEV-Summer%20Bug%20Smash%202026-000000?style=for-the-badge)](https://dev.to/bugsmash)
+[![License: MIT](https://img.shields.io/badge/license-MIT-8a7cff?style=for-the-badge)](LICENSE)
 
-- Node.js `>=22.13.0`
+![RevenueGuard social preview](public/og.png)
 
-## Quick Start
+RevenueGuard is a live payment-webhook chaos lab. It reproduces a costly idempotency bug, stores the evidence in Cloudflare D1, and demonstrates the database-enforced fix side by side.
+
+Built for **DEV's Summer Bug Smash 2026 — Clear the Lineup**, with instrumentation for the **Best Use of Sentry** category and a documented Gemini-assisted debugging workflow.
+
+## Judge quick start
+
+1. Open the [live demo](https://revenueguard-lab.sunny-seal-4213.chatgpt.site/).
+2. Run **Vulnerable**: one payment produces seven orders and exposes `$894` of duplicate revenue risk.
+3. Select **Apply database fix**.
+4. Run **Protected**: the same 20 deliveries produce one order; 19 duplicates are blocked.
+5. Review the persisted event stream and trace waterfall.
+
+No account, payment method, or seeded test data is required.
+
+## The bug we smashed
+
+The first backend implementation attempted to insert all 20 webhook attempts in one D1 statement. The statement exceeded D1's bound-parameter limit, so the main demo path failed precisely when it tried to reproduce the event storm.
+
+The initial reliability fix chunks webhook attempts into groups of ten. The performance follow-up executes the run, attempt chunks, and order writes in a single D1 batch, reducing remote database round trips while preserving the safe parameter count.
+
+| Before | After |
+| --- | --- |
+| 20-attempt bulk insert could exceed D1's parameter ceiling | Inserts stay below the ceiling in deterministic chunks |
+| Multiple sequential database round trips | One atomic D1 batch plus one verification read |
+| Demo could fail during the headline scenario | Both vulnerable and protected flows persist reliably |
+| Limited keyboard and status semantics | Visible focus, pressed state, busy state, and larger touch targets |
+
+See [the technical bug report](docs/BUGSMASH.md) for the root cause, fix, validation, and judging evidence.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  A["Browser demo"] -->|POST /api/simulate| B["Cloudflare Worker"]
+  B --> C["Sentry transaction"]
+  B --> D["Webhook storm engine"]
+  D --> E["D1 batched writes"]
+  E --> F["simulation_runs"]
+  E --> G["webhook_attempts"]
+  E --> H["order_executions"]
+  F & G & H --> I["Persisted proof returned to UI"]
+```
+
+## Sentry instrumentation
+
+RevenueGuard uses `@sentry/cloudflare` at the Worker boundary and adds custom telemetry around the critical money path:
+
+- automatic Worker error capture;
+- a `db.d1.batch` span around the persistence operation;
+- mode, event-count, and order-count span attributes;
+- structured completion logs with duplicates blocked and revenue at risk;
+- explicit exception capture for failed simulations;
+- privacy-first defaults with personally identifiable information disabled.
+
+Set `SENTRY_DSN` in the deployment environment to send traces, logs, and errors to your Sentry project. The application remains functional when the variable is absent.
+
+## Gemini-assisted debugging
+
+Gemini was used as an adversarial test designer: it proposed duplicate, concurrent, delayed-acknowledgement, and out-of-order schedules. Those suggestions were converted into deterministic fixtures so the result is reproducible for every judge.
+
+The prompt, output contract, and engineering decisions are recorded in [docs/GEMINI_ADVERSARY.md](docs/GEMINI_ADVERSARY.md).
+
+## Technology
+
+- React 19 and TypeScript
+- vinext/Vite on Cloudflare Workers
+- Cloudflare D1
+- Drizzle ORM
+- Sentry Cloudflare SDK
+- Node's built-in test runner and ESLint
+
+## Run locally
+
+Requirements: Node.js `>=22.13.0`.
 
 ```bash
 npm install
 npm run dev
-npm run build
 ```
 
-This starter does not use `wrangler.jsonc`.
+Then open the local URL printed by vinext. D1 is simulated locally through the Cloudflare Vite plugin.
 
-## Included Shape
+### Optional Sentry configuration
 
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```bash
+cp .env.example .env.local
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+Add your public Sentry DSN to `.env.local`. Never commit credentials or auth tokens.
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+## Validation
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+```bash
+npm run lint
+npm test
+npm audit --omit=dev
+```
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+The deployed build is additionally checked at desktop and mobile widths. Both backend modes are exercised against the production D1 database before release.
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
+## Repository map
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
+```text
+app/                  UI and API routes
+db/                   D1 schema and Drizzle client
+drizzle/              database migration
+worker/               Cloudflare entry point and Sentry boundary
+tests/                rendered-page regression tests
+docs/                  hackathon evidence and AI workflow
+public/                social preview and brand assets
+```
 
-## Useful Commands
+## Security and cost
 
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+- The demo uses generated references rather than real payment or customer data.
+- Sentry PII collection is disabled.
+- Secrets belong in deployment environment variables and ignored local `.env` files.
+- The demo fits within free development tiers for Cloudflare, D1, Sentry, and Gemini during hackathon evaluation.
 
-## Learn More
+## License
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+[MIT](LICENSE) © 2026 Keith Otieno
