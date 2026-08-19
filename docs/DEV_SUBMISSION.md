@@ -17,7 +17,7 @@ The vulnerable path reproduces the kind of concurrency race that quietly charges
 
 - [Live demo](https://revenueguard.otienomkeith.workers.dev/)
 - [Public source](https://github.com/OtienoKeith/revenueguard)
-- [Bug-fix comparison](https://github.com/OtienoKeith/revenueguard/compare/4d1f4d1...f24b3d2)
+- [Bug-fix comparison](https://github.com/OtienoKeith/revenueguard/compare/91325bd...2027404)
 
 ## Bug Fix or Performance Improvement
 
@@ -80,7 +80,7 @@ await Sentry.startSpan(
 );
 ```
 
-The complete evolution is visible in the [public comparison from the failing implementation to the batched fix](https://github.com/OtienoKeith/revenueguard/compare/4d1f4d1...f24b3d2).
+The complete evolution is visible in the [public comparison from the failing implementation to the batched fix](https://github.com/OtienoKeith/revenueguard/compare/91325bd...2027404).
 
 ## My Improvements
 
