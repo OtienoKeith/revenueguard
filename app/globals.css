@@ -22,6 +22,7 @@ button { cursor: pointer; }
 .brand-mark { width: 31px; height: 31px; display: grid; place-items: center; background: var(--ink); color: var(--lime); border-radius: 50%; font: 700 10px var(--font-geist-mono); letter-spacing: -0.08em; }
 .nav-status { font: 600 11px var(--font-geist-mono); text-transform: uppercase; letter-spacing: .12em; display: flex; align-items: center; gap: 8px; }
 .status-dot, .live-chip span { width: 7px; height: 7px; background: #4cc773; border-radius: 50%; box-shadow: 0 0 0 4px rgba(76,199,115,.14); }
+.status-dot.offline { background: var(--red); box-shadow: 0 0 0 4px rgba(255,102,90,.14); }
 .nav-link { justify-self: end; color: inherit; font-size: 13px; text-decoration: none; border-bottom: 1px solid; padding-bottom: 3px; }
 
 .hero { padding: 74px 4.5vw 64px; }
@@ -43,6 +44,8 @@ h1 em, .business-card h2 em { font-family: Georgia, serif; font-weight: 400; }
 .mode-switch { padding: 4px; background: #20242f; border: 1px solid rgba(255,255,255,.1); border-radius: 5px; display: flex; gap: 3px; }
 .mode-switch button { border: 0; background: transparent; color: #9ba0ad; padding: 10px 15px; border-radius: 3px; font-size: 12px; font-weight: 650; }
 .mode-switch button.active { background: white; color: var(--ink); }
+.backend-error { margin-bottom: 15px; padding: 13px 16px; color: #ffd9d6; background: rgba(255,102,90,.12); border: 1px solid rgba(255,102,90,.35); border-radius: 3px; font-size: 12px; }
+.backend-error strong { color: white; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid rgba(255,255,255,.12); border-radius: 4px; margin-bottom: 15px; overflow: hidden; }
 .metric-card { padding: 22px; min-height: 137px; display: flex; flex-direction: column; border-right: 1px solid rgba(255,255,255,.12); position: relative; overflow: hidden; }
 .metric-card:last-child { border: 0; }
@@ -122,6 +125,10 @@ h1 em, .business-card h2 em { font-family: Georgia, serif; font-weight: 400; }
 .business-card .section-kicker { color: #65751e; }
 .business-card h2 { font-size: clamp(52px, 7vw, 100px); line-height: .88; letter-spacing: -.07em; margin: 32px 0; }
 .business-card > p { max-width: 660px; font-size: 17px; line-height: 1.6; }
+.proof-row { margin-top: 65px; border-top: 1px solid rgba(16,19,27,.35); display: grid; grid-template-columns: repeat(3, 1fr); }
+.proof-row > div { padding: 25px 25px 0 0; display: flex; flex-direction: column; gap: 12px; }
+.proof-row span { font: 650 10px var(--font-geist-mono); text-transform: uppercase; letter-spacing: .08em; color: #65751e; }
+.proof-row strong { font-size: 17px; letter-spacing: -.025em; }
 footer { padding: 25px 2.5vw; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; color: #a2a6b0; font-size: 10px; }
 footer .brand { color: white; }
 footer p { margin: 0; }
@@ -162,6 +169,8 @@ footer > span { justify-self: end; font-family: var(--font-geist-mono); }
   .logic-line { flex-wrap: wrap; }
   .business-section { padding: 10px 0 0; }
   .business-card { padding: 55px 20px 40px; border-radius: 0; }
+  .proof-row { grid-template-columns: 1fr; margin-top: 40px; }
+  .proof-row > div { padding: 18px 0; border-bottom: 1px solid rgba(16,19,27,.2); flex-direction: row; justify-content: space-between; align-items: center; }
   footer { padding: 25px 20px; }
 }
 
