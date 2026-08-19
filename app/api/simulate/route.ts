@@ -65,7 +65,11 @@ export async function POST(request: Request) {
         : index < orderCount ? `order_${String(index + 1).padStart(2, "0")}` : "acknowledged",
       durationMs: mode === "protected" ? 8 + (index % 5) : 34 + (index % 17),
     }));
-    await db.insert(webhookAttempts).values(attempts);
+    // D1 limits the number of bound parameters per statement. Keep each
+    // insert below that ceiling so the 20-event storm works reliably.
+    for (let offset = 0; offset < attempts.length; offset += 10) {
+      await db.insert(webhookAttempts).values(attempts.slice(offset, offset + 10));
+    }
 
     const orders = Array.from({ length: orderCount }, (_, index) => ({
       id: crypto.randomUUID(),
