@@ -26,6 +26,8 @@ test("server-renders the RevenueGuard experiment and public metadata", async () 
   assert.match(html, /aria-label="Choose payment processor mode"/);
   assert.match(html, /aria-pressed="true"/);
   assert.match(html, /aria-busy="false"/);
+  assert.match(html, /https:\/\/github\.com\/OtienoKeith\/revenueguard/);
+  assert.match(html, /Inspect the bug-fix PR/);
   assert.match(html, /https:\/\/revenueguard-lab\.sunny-seal-4213\.hosted-service\.site\/og\.png/);
   assert.doesNotMatch(html, /revenueguard\.dev/);
   assert.doesNotMatch(html, /pricing|after hackathon/i);

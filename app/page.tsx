@@ -253,11 +253,15 @@ export default function Home() {
             <div><span>Evidence</span><strong>Persistent D1 records</strong></div>
             <div><span>Guarantee</span><strong>Unique idempotency key</strong></div>
           </div>
+          <div className="proof-links" aria-label="Public judging evidence">
+            <a href="https://github.com/OtienoKeith/revenueguard" target="_blank" rel="noreferrer">View public source <span aria-hidden="true">↗</span></a>
+            <a href="https://github.com/OtienoKeith/revenueguard/pull/1" target="_blank" rel="noreferrer">Inspect the bug-fix PR <span aria-hidden="true">↗</span></a>
+          </div>
         </div>
         <footer>
           <div className="brand"><span className="brand-mark">RG</span><span>RevenueGuard</span></div>
           <p>One payment should always mean one order.</p>
-          <span>DEV Summer Bug Smash 2026</span>
+          <a href="https://github.com/OtienoKeith/revenueguard" target="_blank" rel="noreferrer">Public on GitHub <span aria-hidden="true">↗</span></a>
         </footer>
       </section>
     </main>
