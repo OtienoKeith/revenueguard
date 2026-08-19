@@ -111,7 +111,7 @@ npx wrangler secret put GEMINI_API_KEY
 npm run deploy
 ```
 
-The deployed project uses Cloudflare Workers hosting—not legacy preview hosting. The selected Gemini 3.5 Flash-Lite model has a free tier; RevenueGuard makes one short analysis request per new run and caches the saved result in D1.
+The deployed project runs on Cloudflare Workers. The selected Gemini 3.5 Flash-Lite model has a free tier; RevenueGuard makes one short analysis request per new run and caches the saved result in D1.
 
 ## Repository map
 

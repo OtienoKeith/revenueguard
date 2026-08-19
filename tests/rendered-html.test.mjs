@@ -28,7 +28,7 @@ test("server-renders the focused RevenueGuard replay", async () => {
   assert.match(html, /aria-busy="false"/);
   assert.match(html, /https:\/\/github\.com\/OtienoKeith\/revenueguard/);
   assert.doesNotMatch(html, /pricing|after hackathon|business plan|Google AI adversary/i);
-  assert.doesNotMatch(html, /hosted-service\.site/i);
+  assert.match(html, /revenueguard\.otienomkeith\.workers\.dev/i);
 });
 
 test("keeps the backend, Sentry, Gemini, deployment, and accessibility proof", async () => {
