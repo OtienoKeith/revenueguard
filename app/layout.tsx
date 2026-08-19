@@ -6,17 +6,17 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://revenueguard-lab.sunny-seal-4213.chatgpt.site"),
-  title: "RevenueGuard — Chaos testing for the money path",
-  description: "Prove your payment flow survives duplicate, delayed, and concurrent webhook events before customers find out.",
+  metadataBase: new URL("https://revenueguard.otienomkeith.workers.dev"),
+  title: "RevenueGuard — Payment webhook replay",
+  description: "Replay duplicate payment webhooks and verify that exactly one order is created.",
   openGraph: {
-    title: "RevenueGuard — Chaos testing for the money path",
+    title: "RevenueGuard — Payment webhook replay",
     description: "One payment. Twenty webhooks. One order.",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "RevenueGuard payment webhook protection flow" }],
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "RevenueGuard payment webhook replay" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "RevenueGuard — Chaos testing for the money path",
+    title: "RevenueGuard — Payment webhook replay",
     description: "One payment. Twenty webhooks. One order.",
     images: ["/og.png"],
   },
