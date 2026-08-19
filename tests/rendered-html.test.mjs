@@ -14,31 +14,30 @@ async function render() {
   );
 }
 
-test("server-renders the RevenueGuard experiment and public metadata", async () => {
+test("server-renders the focused RevenueGuard replay", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>RevenueGuard — Chaos testing for the money path<\/title>/i);
-  assert.match(html, /One payment\.<br\/><em>Twenty webhooks\.<\/em><br\/>One order\./);
-  assert.match(html, /Live backend experiment/);
+  assert.match(html, /<title>RevenueGuard — Payment webhook replay<\/title>/i);
+  assert.match(html, /One payment\. Twenty deliveries\./);
+  assert.match(html, /Payment webhook replay/);
   assert.match(html, /aria-label="Choose payment processor mode"/);
   assert.match(html, /aria-pressed="true"/);
   assert.match(html, /aria-busy="false"/);
   assert.match(html, /https:\/\/github\.com\/OtienoKeith\/revenueguard/);
-  assert.match(html, /Inspect the bug-fix PR/);
-  assert.match(html, /https:\/\/revenueguard-lab\.sunny-seal-4213\.hosted-service\.site\/og\.png/);
-  assert.doesNotMatch(html, /revenueguard\.dev/);
-  assert.doesNotMatch(html, /pricing|after hackathon/i);
+  assert.doesNotMatch(html, /pricing|after hackathon|business plan|Google AI adversary/i);
+  assert.doesNotMatch(html, /hosted-service\.site/i);
 });
 
-test("keeps the backend proof and keyboard accessibility in source", async () => {
-  const [page, css, route, worker] = await Promise.all([
+test("keeps the backend, Sentry, deployment, and accessibility proof", async () => {
+  const [page, css, route, worker, wrangler] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/api/simulate/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /fetch\("\/api\/health"/);
@@ -56,4 +55,6 @@ test("keeps the backend proof and keyboard accessibility in source", async () =>
   assert.match(route, /Sentry\.captureException\(/);
   assert.match(worker, /Sentry\.withSentry\(/);
   assert.match(worker, /sendDefaultPii:\s*false/);
+  assert.match(wrangler, /"database_name": "revenueguard-db"/);
+  assert.match(wrangler, /"observability": \{ "enabled": true \}/);
 });
