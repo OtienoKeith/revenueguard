@@ -230,11 +230,6 @@ export default function Home() {
           <span className="section-kicker">After the hackathon</span>
           <h2>Chaos testing for<br /><em>the money path.</em></h2>
           <p>Run RevenueGuard in CI before every release. Catch duplicate fulfillment, stale subscription state, and unsafe retries before they reach production.</p>
-          <div className="price-row">
-            <div><span>Open-source CLI</span><strong>$0</strong></div>
-            <div><span>Startup cloud</span><strong>$99<small>/mo</small></strong></div>
-            <div><span>Reliability audit</span><strong>$999</strong></div>
-          </div>
         </div>
         <footer>
           <div className="brand"><span className="brand-mark">RG</span><span>RevenueGuard</span></div>
