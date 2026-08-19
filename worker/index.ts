@@ -1,10 +1,13 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
+import * as Sentry from "@sentry/cloudflare";
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
+  SENTRY_DSN?: string;
+  SENTRY_ENVIRONMENT?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -44,4 +47,14 @@ const worker = {
   },
 };
 
-export default worker;
+export default Sentry.withSentry(
+  (env: Env) => ({
+    dsn: env.SENTRY_DSN,
+    enabled: Boolean(env.SENTRY_DSN),
+    environment: env.SENTRY_ENVIRONMENT ?? "production",
+    enableLogs: true,
+    tracesSampleRate: 1,
+    sendDefaultPii: false,
+  }),
+  worker,
+);

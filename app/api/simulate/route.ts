@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/cloudflare";
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { orderExecutions, simulationRuns, webhookAttempts } from "../../../db/schema";
@@ -42,7 +43,12 @@ export async function POST(request: Request) {
     const revenueAtRisk = mode === "vulnerable" ? (orderCount - 1) * 149 : 0;
     const db = getDb();
 
-    await db.insert(simulationRuns).values({
+    Sentry.setTags({
+      "revenueguard.mode": mode,
+      "revenueguard.event_count": eventCount,
+    });
+
+    const runWrite = db.insert(simulationRuns).values({
       id: runId,
       mode,
       eventCount,
@@ -65,16 +71,31 @@ export async function POST(request: Request) {
         : index < orderCount ? `order_${String(index + 1).padStart(2, "0")}` : "acknowledged",
       durationMs: mode === "protected" ? 8 + (index % 5) : 34 + (index % 17),
     }));
-    await db.insert(webhookAttempts).values(attempts);
-
-    const orders = Array.from({ length: orderCount }, (_, index) => ({
+    const orders = Array.from({ length: orderCount }, () => ({
       id: crypto.randomUUID(),
       runId,
       paymentRef,
       idempotencyKey: mode === "protected" ? `${runId}:${eventRef}` : null,
       amountCents: 14900,
     }));
-    await db.insert(orderExecutions).values(orders);
+    // D1 limits bound parameters per statement, so attempts stay chunked.
+    // Execute all writes in one D1 batch to avoid a round trip per chunk.
+    const attemptWrites = Array.from(
+      { length: Math.ceil(attempts.length / 10) },
+      (_, chunkIndex) => db.insert(webhookAttempts).values(attempts.slice(chunkIndex * 10, chunkIndex * 10 + 10)),
+    );
+    await Sentry.startSpan(
+      {
+        name: "Persist webhook storm",
+        op: "db.d1.batch",
+        attributes: {
+          "revenueguard.mode": mode,
+          "revenueguard.event_count": eventCount,
+          "revenueguard.order_count": orderCount,
+        },
+      },
+      () => db.batch([runWrite, ...attemptWrites, db.insert(orderExecutions).values(orders)]),
+    );
 
     const storedOrders = await db.select().from(orderExecutions).where(eq(orderExecutions.runId, runId));
     const logs = mode === "vulnerable"
@@ -106,6 +127,15 @@ export async function POST(request: Request) {
           ["worker.a · fulfillment", 70, 22, "lime"],
         ];
 
+    Sentry.logger.info("RevenueGuard simulation completed", {
+      run_id: runId,
+      mode,
+      event_count: eventCount,
+      order_count: storedOrders.length,
+      duplicates_blocked: duplicatesBlocked,
+      revenue_at_risk: revenueAtRisk,
+    });
+
     return Response.json({
       runId,
       eventRef,
@@ -121,6 +151,7 @@ export async function POST(request: Request) {
       trace,
     }, { status: 201 });
   } catch (error) {
+    Sentry.captureException(error);
     return Response.json({ error: error instanceof Error ? error.message : "Simulation failed" }, { status: 500 });
   }
 }

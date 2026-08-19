@@ -6,7 +6,7 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://revenueguard.dev"),
+  metadataBase: new URL("https://revenueguard.otienomkeith.workers.dev"),
   title: "RevenueGuard — Chaos testing for the money path",
   description: "Prove your payment flow survives duplicate, delayed, and concurrent webhook events before customers find out.",
   openGraph: {

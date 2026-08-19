@@ -43,7 +43,7 @@ export default function Home() {
   const [serverRun, setServerRun] = useState<RunResponse | null>(null);
   const [backendHealthy, setBackendHealthy] = useState<boolean | null>(null);
   const [error, setError] = useState("");
-  const logs = serverRun?.logs ?? [];
+  const logs = useMemo(() => serverRun?.logs ?? [], [serverRun]);
 
   useEffect(() => {
     fetch("/api/health", { cache: "no-store" })
@@ -53,7 +53,6 @@ export default function Home() {
 
   useEffect(() => {
     if (runState !== "running" || !serverRun) return;
-    setVisibleLogs(0);
     const timers = logs.map((_, index) =>
       window.setTimeout(() => setVisibleLogs(index + 1), 270 * (index + 1)),
     );
@@ -140,12 +139,12 @@ export default function Home() {
         </div>
       </section>
 
-      <section className={`lab-shell ${mode}`} aria-labelledby="lab-title">
+      <section className={`lab-shell ${mode}`} aria-labelledby="lab-title" aria-busy={runState === "running"}>
         <div className="lab-topbar">
           <div><span className="section-kicker">Live backend experiment</span><h2 id="lab-title">The duplicate-order race</h2></div>
           <div className="mode-switch" role="group" aria-label="Choose payment processor mode">
-            <button className={mode === "vulnerable" ? "active" : ""} onClick={() => selectMode("vulnerable")}>Vulnerable</button>
-            <button className={mode === "protected" ? "active" : ""} onClick={() => selectMode("protected")}>Protected</button>
+            <button className={mode === "vulnerable" ? "active" : ""} aria-pressed={mode === "vulnerable"} onClick={() => selectMode("vulnerable")}>Vulnerable</button>
+            <button className={mode === "protected" ? "active" : ""} aria-pressed={mode === "protected"} onClick={() => selectMode("protected")}>Protected</button>
           </div>
         </div>
 
