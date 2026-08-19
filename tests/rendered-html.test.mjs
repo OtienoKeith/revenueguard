@@ -32,10 +32,11 @@ test("server-renders the RevenueGuard experiment and public metadata", async () 
 });
 
 test("keeps the backend proof and keyboard accessibility in source", async () => {
-  const [page, css, route] = await Promise.all([
+  const [page, css, route, worker] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/api/simulate/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /fetch\("\/api\/health"/);
@@ -46,6 +47,11 @@ test("keeps the backend proof and keyboard accessibility in source", async () =>
   assert.match(css, /:focus-visible/);
   assert.match(css, /min-height:\s*44px/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.match(route, /await db\.batch\(/);
+  assert.match(route, /db\.batch\(/);
   assert.match(route, /persisted:\s*true/);
+  assert.match(route, /Sentry\.startSpan\(/);
+  assert.match(route, /Sentry\.logger\.info\(/);
+  assert.match(route, /Sentry\.captureException\(/);
+  assert.match(worker, /Sentry\.withSentry\(/);
+  assert.match(worker, /sendDefaultPii:\s*false/);
 });
