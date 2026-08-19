@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     const revenueAtRisk = mode === "vulnerable" ? (orderCount - 1) * 149 : 0;
     const db = getDb();
 
-    await db.insert(simulationRuns).values({
+    const runWrite = db.insert(simulationRuns).values({
       id: runId,
       mode,
       eventCount,
@@ -65,20 +65,20 @@ export async function POST(request: Request) {
         : index < orderCount ? `order_${String(index + 1).padStart(2, "0")}` : "acknowledged",
       durationMs: mode === "protected" ? 8 + (index % 5) : 34 + (index % 17),
     }));
-    // D1 limits the number of bound parameters per statement. Keep each
-    // insert below that ceiling so the 20-event storm works reliably.
-    for (let offset = 0; offset < attempts.length; offset += 10) {
-      await db.insert(webhookAttempts).values(attempts.slice(offset, offset + 10));
-    }
-
-    const orders = Array.from({ length: orderCount }, (_, index) => ({
+    const orders = Array.from({ length: orderCount }, () => ({
       id: crypto.randomUUID(),
       runId,
       paymentRef,
       idempotencyKey: mode === "protected" ? `${runId}:${eventRef}` : null,
       amountCents: 14900,
     }));
-    await db.insert(orderExecutions).values(orders);
+    // D1 limits bound parameters per statement, so attempts stay chunked.
+    // Execute all writes in one D1 batch to avoid a round trip per chunk.
+    const attemptWrites = Array.from(
+      { length: Math.ceil(attempts.length / 10) },
+      (_, chunkIndex) => db.insert(webhookAttempts).values(attempts.slice(chunkIndex * 10, chunkIndex * 10 + 10)),
+    );
+    await db.batch([runWrite, ...attemptWrites, db.insert(orderExecutions).values(orders)]);
 
     const storedOrders = await db.select().from(orderExecutions).where(eq(orderExecutions.runId, runId));
     const logs = mode === "vulnerable"
