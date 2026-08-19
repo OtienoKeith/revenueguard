@@ -2,103 +2,80 @@
 
 > One payment. Twenty webhook deliveries. Exactly one order.
 
-[![Live demo](https://img.shields.io/badge/live-demo-d7ff43?style=for-the-badge&labelColor=10131b)](https://revenueguard.otienomkeith.workers.dev/)
+[![Live on Cloudflare](https://img.shields.io/badge/live-Cloudflare%20Workers-f38020?style=for-the-badge)](https://revenueguard.otienomkeith.workers.dev)
 [![DEV Challenge](https://img.shields.io/badge/DEV-Summer%20Bug%20Smash%202026-000000?style=for-the-badge)](https://dev.to/bugsmash)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8a7cff?style=for-the-badge)](LICENSE)
 
 ![RevenueGuard social preview](public/og.png)
 
-RevenueGuard is a live payment-webhook chaos lab. It reproduces a costly idempotency bug, stores the evidence in Cloudflare D1, and demonstrates the database-enforced fix side by side.
+RevenueGuard is a working payment-webhook replay lab. It reproduces a duplicate-order race, stores the evidence in Cloudflare D1, and proves the idempotency fix using the same 20-event input.
 
-Built for **DEV's Summer Bug Smash 2026 — Clear the Lineup**, with instrumentation for the **Best Use of Sentry** category and a documented Gemini-assisted debugging workflow.
+Built for **DEV's Summer Bug Smash 2026 — Clear the Lineup**, with production instrumentation for the **Best Use of Sentry** category.
 
-## Judge quick start
+## Try it
 
-1. Open the [live demo](https://revenueguard.otienomkeith.workers.dev/).
-2. Run **Vulnerable**: one payment produces seven orders and exposes `$894` of duplicate revenue risk.
-3. Select **Apply database fix**.
-4. Run **Protected**: the same 20 deliveries produce one order; 19 duplicates are blocked.
-5. Review the persisted event stream and trace waterfall.
+1. Open the [live Cloudflare deployment](https://revenueguard.otienomkeith.workers.dev).
+2. Run **Vulnerable**: one payment creates multiple orders.
+3. Select **Apply fix**.
+4. Run **Protected**: the same 20 deliveries create exactly one order and block 19 duplicates.
 
-No account, payment method, or seeded test data is required.
+No sign-in, payment method, or seeded data is required.
 
-## The bug we smashed
+## What is real
 
-The first backend implementation attempted to insert all 20 webhook attempts in one D1 statement. The statement exceeded D1's bound-parameter limit, so the main demo path failed precisely when it tried to reproduce the event storm.
-
-The initial reliability fix chunks webhook attempts into groups of ten. The performance follow-up executes the run, attempt chunks, and order writes in a single D1 batch, reducing remote database round trips while preserving the safe parameter count.
-
-| Before | After |
-| --- | --- |
-| 20-attempt bulk insert could exceed D1's parameter ceiling | Inserts stay below the ceiling in deterministic chunks |
-| Multiple sequential database round trips | One atomic D1 batch plus one verification read |
-| Demo could fail during the headline scenario | Both vulnerable and protected flows persist reliably |
-| Limited keyboard and status semantics | Visible focus, pressed state, busy state, and larger touch targets |
-
-See [the technical bug report](docs/BUGSMASH.md) for the root cause, fix, validation, and judging evidence.
+- Every run calls a deployed Cloudflare Worker API route.
+- Every event storm is persisted to a production D1 database.
+- The vulnerable and protected paths use the same deterministic input.
+- `@sentry/cloudflare` captures errors, traces the D1 batch, and emits structured completion logs.
+- The public repository includes the migration, regression tests, and [bug-fix evidence](docs/BUGSMASH.md).
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  A["Browser demo"] -->|POST /api/simulate| B["Cloudflare Worker"]
-  B --> C["Sentry transaction"]
+  A["Browser replay"] -->|POST /api/simulate| B["Cloudflare Worker"]
+  B --> C["Sentry trace + logs"]
   B --> D["Webhook storm engine"]
   D --> E["D1 batched writes"]
   E --> F["simulation_runs"]
   E --> G["webhook_attempts"]
   E --> H["order_executions"]
-  F & G & H --> I["Persisted proof returned to UI"]
+  F & G & H --> I["Stored proof returned to UI"]
 ```
 
-## Sentry instrumentation
+## Sentry evidence
 
-RevenueGuard uses `@sentry/cloudflare` at the Worker boundary and adds custom telemetry around the critical money path:
+The Worker is wrapped with `Sentry.withSentry` and the money path adds:
 
-- automatic Worker error capture;
-- a `db.d1.batch` span around the persistence operation;
-- mode, event-count, and order-count span attributes;
-- structured completion logs with duplicates blocked and revenue at risk;
-- explicit exception capture for failed simulations;
-- privacy-first defaults with personally identifiable information disabled.
+- a `db.d1.batch` span;
+- run mode, event count, and order count attributes;
+- structured logs for orders, blocked duplicates, and revenue at risk;
+- explicit exception capture;
+- PII collection disabled.
 
-Set `SENTRY_DSN` in the deployment environment to send traces, logs, and errors to your Sentry project. The application remains functional when the variable is absent.
-
-## Gemini-assisted debugging
-
-Gemini was used as an adversarial test designer: it proposed duplicate, concurrent, delayed-acknowledgement, and out-of-order schedules. Those suggestions were converted into deterministic fixtures so the result is reproducible for every judge.
-
-The prompt, output contract, and engineering decisions are recorded in [docs/GEMINI_ADVERSARY.md](docs/GEMINI_ADVERSARY.md).
+The production DSN is stored as a Cloudflare secret and is never committed.
 
 ## Technology
 
 - React 19 and TypeScript
-- vinext/Vite on Cloudflare Workers
-- Cloudflare D1
+- vinext and Vite
+- Cloudflare Workers and D1
 - Drizzle ORM
 - Sentry Cloudflare SDK
-- Node's built-in test runner and ESLint
+- Wrangler-generated runtime types
 
-## Run locally
+## Local development
 
-Requirements: Node.js `>=22.13.0`.
+Requires Node.js `>=22.13.0`.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open the local URL printed by vinext. D1 is simulated locally through the Cloudflare Vite plugin.
+D1 is simulated locally by the Cloudflare Vite plugin.
 
-### Optional Sentry configuration
-
-```bash
-cp .env.example .env.local
-```
-
-Add your public Sentry DSN to `.env.local`. Never commit credentials or auth tokens.
-
-## Validation
+## Validate
 
 ```bash
 npm run lint
@@ -106,26 +83,31 @@ npm test
 npm audit --omit=dev
 ```
 
-The deployed build is additionally checked at desktop and mobile widths. Both backend modes are exercised against the production D1 database before release.
+## Deploy to Cloudflare
+
+After authenticating Wrangler, create a D1 database, update its ID in `wrangler.jsonc`, then run:
+
+```bash
+npm run cf:types
+npm run db:migrate:remote
+npx wrangler secret put SENTRY_DSN
+npm run deploy
+```
+
+The deployed project uses Cloudflare Workers hosting—not legacy preview hosting.
 
 ## Repository map
 
 ```text
-app/                  UI and API routes
-db/                   D1 schema and Drizzle client
-drizzle/              database migration
-worker/               Cloudflare entry point and Sentry boundary
-tests/                rendered-page regression tests
-docs/                  hackathon evidence and AI workflow
-public/                social preview and brand assets
+app/                        interface and API routes
+db/                         D1 schema and Drizzle client
+drizzle/                    database migration
+worker/                     Cloudflare entry and Sentry boundary
+worker-configuration.d.ts   generated Cloudflare runtime types
+tests/                      rendered-page regression tests
+docs/                       hackathon evidence
+wrangler.jsonc              production Worker and D1 configuration
 ```
-
-## Security and cost
-
-- The demo uses generated references rather than real payment or customer data.
-- Sentry PII collection is disabled.
-- Secrets belong in deployment environment variables and ignored local `.env` files.
-- The demo fits within free development tiers for Cloudflare, D1, Sentry, and Gemini during hackathon evaluation.
 
 ## License
 

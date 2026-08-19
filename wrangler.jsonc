@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "revenueguard",
+  "account_id": "3e773c49c42c8af9e0f49444b910eb6f",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-08-19",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": true,
+  "upload_source_maps": true,
+  "observability": { "enabled": true },
+  "vars": { "SENTRY_ENVIRONMENT": "production" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "revenueguard-db",
+      "database_id": "47baa6ec-9408-4abc-a584-f05d5a4d102e",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}
