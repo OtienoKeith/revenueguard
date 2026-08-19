@@ -9,7 +9,15 @@
   "preview_urls": true,
   "upload_source_maps": true,
   "observability": { "enabled": true },
+  "secrets": { "required": ["SENTRY_DSN", "GEMINI_API_KEY"] },
   "vars": { "SENTRY_ENVIRONMENT": "production" },
+  "ratelimits": [
+    {
+      "name": "AI_RATE_LIMIT",
+      "namespace_id": "739521",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",

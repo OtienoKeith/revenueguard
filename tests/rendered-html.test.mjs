@@ -31,17 +31,22 @@ test("server-renders the focused RevenueGuard replay", async () => {
   assert.doesNotMatch(html, /hosted-service\.site/i);
 });
 
-test("keeps the backend, Sentry, deployment, and accessibility proof", async () => {
-  const [page, css, route, worker, wrangler] = await Promise.all([
+test("keeps the backend, Sentry, Gemini, deployment, and accessibility proof", async () => {
+  const [page, css, route, analysisRoute, schema, worker, wrangler] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/api/simulate/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/analyze/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
     readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
   ]);
 
   assert.match(page, /fetch\("\/api\/health"/);
   assert.match(page, /fetch\("\/api\/simulate"/);
+  assert.match(page, /fetch\("\/api\/analyze"/);
+  assert.match(page, /Google AI diagnosis/);
+  assert.match(page, /stored in D1/);
   assert.match(page, /aria-pressed=\{mode === "vulnerable"\}/);
   assert.match(page, /aria-pressed=\{mode === "protected"\}/);
   assert.match(page, /aria-busy=\{runState === "running"\}/);
@@ -53,8 +58,18 @@ test("keeps the backend, Sentry, deployment, and accessibility proof", async () 
   assert.match(route, /Sentry\.startSpan\(/);
   assert.match(route, /Sentry\.logger\.info\(/);
   assert.match(route, /Sentry\.captureException\(/);
+  assert.match(analysisRoute, /generativelanguage\.googleapis\.com\/v1beta\/interactions/);
+  assert.match(analysisRoute, /gemini-3\.5-flash-lite/);
+  assert.match(analysisRoute, /response_format/);
+  assert.match(analysisRoute, /store:\s*false/);
+  assert.match(analysisRoute, /op:\s*"ai\.gemini\.interactions"/);
+  assert.match(analysisRoute, /db\.insert\(aiDiagnoses\)/);
+  assert.match(analysisRoute, /env\.AI_RATE_LIMIT\.limit/);
+  assert.match(schema, /sqliteTable\("ai_diagnoses"/);
   assert.match(worker, /Sentry\.withSentry\(/);
   assert.match(worker, /sendDefaultPii:\s*false/);
   assert.match(wrangler, /"database_name": "revenueguard-db"/);
   assert.match(wrangler, /"observability": \{ "enabled": true \}/);
+  assert.match(wrangler, /"secrets": \{ "required": \["SENTRY_DSN", "GEMINI_API_KEY"\] \}/);
+  assert.match(wrangler, /"name": "AI_RATE_LIMIT"/);
 });

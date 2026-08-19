@@ -8,6 +8,13 @@
       "when": 1787162698375,
       "tag": "0000_oval_molecule_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1787175126280,
+      "tag": "0001_panoramic_venus",
+      "breakpoints": true
     }
   ]
 }

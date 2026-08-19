@@ -5,6 +5,7 @@ import Link from "next/link";
 
 type Mode = "vulnerable" | "protected";
 type RunState = "idle" | "running" | "complete";
+type AnalysisState = "idle" | "loading" | "complete" | "error";
 type RunResponse = {
   runId: string;
   eventRef: string;
@@ -13,6 +14,21 @@ type RunResponse = {
   metrics: { deliveries: number; orders: number; duplicates: number; risk: string };
   logs: string[][];
   trace: (string | number)[][];
+};
+type AnalysisResponse = {
+  runId: string;
+  model: string;
+  requestRef: string;
+  verdict: "unsafe" | "protected";
+  headline: string;
+  rootCause: string;
+  evidence: string[];
+  recommendedFix: string;
+  nextTest: string;
+  confidence: number;
+  latencyMs: number;
+  persisted: boolean;
+  cached: boolean;
 };
 
 const previewTrace: Record<Mode, (string | number)[][]> = {
@@ -37,6 +53,9 @@ export default function Home() {
   const [serverRun, setServerRun] = useState<RunResponse | null>(null);
   const [backendHealthy, setBackendHealthy] = useState<boolean | null>(null);
   const [error, setError] = useState("");
+  const [analysisState, setAnalysisState] = useState<AnalysisState>("idle");
+  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
+  const [analysisError, setAnalysisError] = useState("");
   const logs = useMemo(() => serverRun?.logs ?? [], [serverRun]);
 
   useEffect(() => {
@@ -75,6 +94,29 @@ export default function Home() {
     setServerRun(null);
     setVisibleLogs(0);
     setError("");
+    setAnalysisState("idle");
+    setAnalysis(null);
+    setAnalysisError("");
+  }
+
+  async function analyzeRun(runId: string) {
+    setAnalysisState("loading");
+    setAnalysis(null);
+    setAnalysisError("");
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ runId }),
+      });
+      const payload = await response.json() as AnalysisResponse & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Gemini could not analyze this run.");
+      setAnalysis(payload);
+      setAnalysisState("complete");
+    } catch (cause) {
+      setAnalysisError(cause instanceof Error ? cause.message : "Gemini analysis failed.");
+      setAnalysisState("error");
+    }
   }
 
   async function runStorm() {
@@ -83,6 +125,9 @@ export default function Home() {
     setServerRun(null);
     setVisibleLogs(0);
     setError("");
+    setAnalysisState("idle");
+    setAnalysis(null);
+    setAnalysisError("");
     try {
       const response = await fetch("/api/simulate", {
         method: "POST",
@@ -93,6 +138,7 @@ export default function Home() {
       if (!response.ok) throw new Error(payload.error || "The server rejected this run.");
       setServerRun(payload);
       setBackendHealthy(true);
+      void analyzeRun(payload.runId);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The backend experiment failed.");
       setBackendHealthy(false);
@@ -192,6 +238,36 @@ export default function Home() {
           </article>
         </div>
 
+        {serverRun && (
+          <article className={`ai-panel ${analysis?.verdict ?? "pending"}`} aria-live="polite" aria-busy={analysisState === "loading"}>
+            <div className="ai-head">
+              <div>
+                <span className="ai-label">Google AI diagnosis</span>
+                <h2>{analysisState === "loading" ? "Gemini is reading the stored evidence..." : analysis?.headline ?? "Diagnosis unavailable"}</h2>
+              </div>
+              <b>{analysis?.model ?? "gemini-3.5-flash-lite"}</b>
+            </div>
+            {analysisState === "loading" && <div className="ai-progress"><i /></div>}
+            {analysisState === "error" && (
+              <div className="ai-error">
+                <span>{analysisError}</span>
+                <button onClick={() => void analyzeRun(serverRun.runId)}>Retry AI analysis</button>
+              </div>
+            )}
+            {analysis && (
+              <div className="ai-body">
+                <div><span>Root cause</span><p>{analysis.rootCause}</p></div>
+                <div><span>Evidence</span><ul>{analysis.evidence.map((item) => <li key={item}>{item}</li>)}</ul></div>
+                <div><span>Recommended fix</span><p>{analysis.recommendedFix}</p></div>
+                <div><span>Next adversarial test</span><p>{analysis.nextTest}</p></div>
+                <small>
+                  {analysis.confidence}% confidence · {analysis.latencyMs} ms · stored in D1 · request {analysis.requestRef.slice(0, 16)}
+                </small>
+              </div>
+            )}
+          </article>
+        )}
+
         {runState === "complete" && serverRun && (
           <div className={`result-bar ${mode}`} role="status">
             <span>{mode === "vulnerable" ? "FAIL" : "PASS"}</span>
@@ -203,7 +279,7 @@ export default function Home() {
       </section>
 
       <footer className="footer-line">
-        <span>Cloudflare Worker</span><span>Cloudflare D1</span><span>Sentry</span>
+        <span>Cloudflare Worker</span><span>Cloudflare D1</span><span>Sentry</span><span>Gemini</span>
       </footer>
     </main>
   );

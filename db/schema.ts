@@ -35,3 +35,23 @@ export const orderExecutions = sqliteTable("order_executions", {
   index("idx_order_executions_run_id").on(table.runId),
   uniqueIndex("idx_order_executions_idempotency_key").on(table.idempotencyKey),
 ]);
+
+export const aiDiagnoses = sqliteTable("ai_diagnoses", {
+  id: text("id").primaryKey(),
+  runId: text("run_id").notNull().references(() => simulationRuns.id, { onDelete: "cascade" }),
+  model: text("model").notNull(),
+  interactionId: text("interaction_id").notNull(),
+  verdict: text("verdict", { enum: ["unsafe", "protected"] }).notNull(),
+  headline: text("headline").notNull(),
+  rootCause: text("root_cause").notNull(),
+  evidenceJson: text("evidence_json").notNull(),
+  recommendedFix: text("recommended_fix").notNull(),
+  nextTest: text("next_test").notNull(),
+  confidence: integer("confidence").notNull(),
+  latencyMs: integer("latency_ms").notNull(),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("idx_ai_diagnoses_run_id").on(table.runId),
+]);

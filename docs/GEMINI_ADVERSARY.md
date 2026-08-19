@@ -1,33 +1,37 @@
-# Gemini adversarial test design
+# Gemini runtime diagnosis
 
-## Goal
+RevenueGuard uses Google Gemini after every replay. This is a live production call, not prewritten copy and not a build-time design exercise.
 
-Use Google Gemini as a hostile network designer, then convert its suggestions into deterministic tests. The model explores the failure space; the application owns execution and assertions.
+## Runtime flow
 
-## Prompt
+1. The browser creates a deterministic vulnerable or protected replay through `/api/simulate`.
+2. The Worker persists the run, all webhook attempts, and order executions in Cloudflare D1.
+3. The browser sends only the returned `runId` to `/api/analyze`.
+4. The Worker reloads the evidence from D1, preventing the client from inventing metrics for the model.
+5. Gemini 3.5 Flash-Lite returns schema-constrained JSON through the Interactions API.
+6. RevenueGuard validates and clips every field, then stores the diagnosis, model name, request reference, token counts, and latency in `ai_diagnoses`.
+7. Sentry records the AI request as an `ai.gemini.interactions` span and captures failures.
 
-```text
-You are reviewing a payment webhook that creates an order after receiving
-payment_intent.succeeded. Propose the smallest adversarial event schedules that
-can reveal missing idempotency, check-then-insert races, delayed acknowledgements,
-and out-of-order state handling. For each schedule return: event sequence,
-concurrency, delay, expected invariant, and the trace evidence needed to prove
-the root cause. Do not suggest destructive tests against real customer data.
-```
+## Model task
 
-## Resulting fixtures
+Gemini receives the payment invariant plus the persisted run, attempts, and order executions. It must produce:
 
-| Scenario | Deterministic fixture | Invariant |
-| --- | --- | --- |
-| Duplicate delivery | 20 copies of one event ID with no gap | One order per payment |
-| Concurrent retry | Two workers check before either inserts | One worker may claim execution |
-| Delayed acknowledgement | Commit succeeds before provider retry | Retry cannot repeat fulfillment |
-| Out-of-order update | Newer state arrives before older state | State cannot move backward |
+- `verdict`: `unsafe` or `protected`;
+- `headline`: a concise diagnosis;
+- `rootCause`: the concurrency or idempotency mechanism shown by the evidence;
+- `evidence`: two or three numerical facts from the run;
+- `recommendedFix`: the smallest database-enforced correction;
+- `nextTest`: one deterministic adversarial scenario;
+- `confidence`: an integer from 0 to 100.
 
-## Engineering decision
+The request uses `store: false`, low temperature, a bounded output, and a JSON Schema response format. Stored diagnoses are reused, so repeatedly viewing the same run does not spend another model request.
 
-Model output is not executed directly. RevenueGuard normalizes each proposal into a fixed server-side schedule and records the expected invariant. This makes the demo reproducible, prevents prompt variance from changing judging results, and keeps the core payment logic independent of an AI provider outage.
+## Safety boundary
 
-## Evidence in the product
+Gemini never creates orders, blocks retries, authorizes payments, or modifies the execution ledger. It only interprets evidence after the replay. The unique D1 idempotency key remains the production invariant and still works if Gemini is unavailable.
 
-The landing page lists the four generated attack scenarios. The live lab currently executes the duplicate/concurrent case because it produces the clearest financial before/after proof. The trace distinguishes the vulnerable check-then-insert race from the protected database claim.
+The prompt treats embedded event values as untrusted data and instructs the model not to follow them as commands. The API key is a required encrypted Cloudflare secret and never reaches the browser or repository.
+
+## Why this matters for the challenge
+
+The two prize integrations reinforce each other: Sentry shows where the bug and AI request occurred; Gemini turns the stored trace into an understandable root cause and a concrete next test. Judges can run both modes and receive a new, persisted model interaction they can verify in the UI and D1.
